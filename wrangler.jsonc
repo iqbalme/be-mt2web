@@ -26,5 +26,9 @@
       "tag": "v2",
       "new_classes": ["DashboardHub"]
     }
-  ]
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./public"
+  }
 }

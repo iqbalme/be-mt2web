@@ -311,6 +311,10 @@ export default {
       return stub.fetch(request);
     }
 
+    // Fallback: serve static assets if available
+    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      return env.ASSETS.fetch(request);
+    }
     return new Response("Endpoint Not Found", { status: 404 });
   }
 };
