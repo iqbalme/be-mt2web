@@ -20,11 +20,11 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_classes": ["TradingChannel"]
+      "new_sqlite_classes": ["TradingChannel"]
     },
     {
       "tag": "v2",
-      "new_classes": ["DashboardHub"]
+      "new_sqlite_classes": ["DashboardHub"]
     }
   ],
   "assets": {
