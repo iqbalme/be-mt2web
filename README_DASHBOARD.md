@@ -85,7 +85,24 @@ test_dashboard.sh        # Test script (Bash)
 - Terminal baru otomatis ditambah ke dropdown
 - Terputus otomatis reconnect setiap 3 detik
 
+### 🆕 Advanced Features (Issue #5)
+
+#### 1. Auto-delete Idle Channels
+Dashboard secara otomatis akan menghapus card terminal yang sudah tidak aktif (idle) selama durasi tertentu.
+- **Default:** 3600 detik (1 jam).
+- **Konfigurasi:** Anda dapat mengubah durasi ini di `src/index.ts` pada variabel `IDLE_TIMEOUT_SECONDS` di dalam fungsi `alarm()`.
+
+#### 2. Dynamic UI Updates
+Dashboard tidak lagi "terkunci" pada struktur JSON awal. Setiap kali terminal mengirim data dengan struktur key yang berbeda, UI akan langsung menyesuaikan tampilannya (overwrite data lama).
+
+#### 3. Color Coding (Profit/Loss)
+Nilai pada key berikut akan berwarna secara otomatis:
+- `profit_all`, `profit_today`, `floating`
+- **Biru:** Jika nilai positif (> 0).
+- **Merah:** Jika nilai negatif (< 0).
+
 ## 🔧 API
+
 
 ### POST /update
 Kirim data dari terminal

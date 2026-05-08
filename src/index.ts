@@ -67,7 +67,6 @@ export class DashboardHub extends DurableObject {
         await this.ctx.storage.setAlarm(Date.now() + 60 * 1000);
       }
 
-
       // Broadcast to all dashboard clients
       this.broadcastToClients();
 
@@ -110,9 +109,8 @@ export class DashboardHub extends DurableObject {
     await this.ctx.storage.setAlarm(Date.now() + 60 * 1000);
   }
 
-
-
   handleDashboardWebSocket(request: Request): Response {
+
     if (request.headers.get("Upgrade") !== "websocket") {
       return new Response("Expected Upgrade: websocket", { status: 426 });
     }
