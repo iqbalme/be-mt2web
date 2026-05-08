@@ -644,6 +644,10 @@
 						return;
 					}
 
+					// Remove loading state dan empty-state saat ada data
+					const loading = this.cardsContainer.querySelector('.loading');
+					if (loading) loading.remove();
+					
 					const emptyState = this.cardsContainer.querySelector('.empty-state');
 					if (emptyState) emptyState.remove();
 
@@ -668,7 +672,7 @@
 								return `
 									<div class="data-row">
 										<span class="data-key">${key}</span>
-										<span class="data-value ${colorClass}">${this.formatValue(value)}</span>
+										<span class="data-value ${colorClass}">${this.formatValue(value, key)}</span>
 									</div>
 								`;
 							})
@@ -697,16 +701,34 @@
 					});
 				}
 
-				   formatValue(value) {
+				   formatNumber(value) {
+					   const num = parseFloat(value);
+					   if (isNaN(num)) return String(value);
+					   return num.toLocaleString('id-ID', {
+						   minimumFractionDigits: 0,
+						   maximumFractionDigits: 2
+					   });
+				   }
+
+				   formatValue(value, key = '') {
+					   // Fields yang perlu format number
+					   const numberFields = ['balance', 'equity', 'floating', 'profit_all', 'profit_today'];
+					   
 					   if (Array.isArray(value)) {
-						   return `<ul style="margin:0 0 0 18px;padding:0;">${value.map(v => `<li>${this.formatValue(v)}</li>`).join('')}</ul>`;
+						   return `<ul style="margin:0 0 0 18px;padding:0;">${value.map(v => `<li>${this.formatValue(v, key)}</li>`).join('')}</ul>`;
 					   }
 					   if (typeof value === 'object' && value !== null) {
-						   return `<ul style="margin:0 0 0 18px;padding:0;">${Object.entries(value).map(([k, v]) => `<li><strong>${k}:</strong> ${this.formatValue(v)}</li>`).join('')}</ul>`;
+						   return `<ul style="margin:0 0 0 18px;padding:0;">${Object.entries(value).map(([k, v]) => `<li><strong>${k}:</strong> ${this.formatValue(v, k)}</li>`).join('')}</ul>`;
 					   }
 					   if (typeof value === 'boolean') {
 						   return value ? '✓' : '✗';
 					   }
+					   
+					   // Apply number formatting untuk field tertentu
+					   if (numberFields.includes(key)) {
+						   return this.formatNumber(value);
+					   }
+					   
 					   return String(value);
 				   }
 
