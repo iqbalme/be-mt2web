@@ -27,7 +27,10 @@ export class DashboardHub extends DurableObject {
       return this.handleDashboardWebSocket(request);
     } else if (url.pathname === "/update" && request.method === "POST") {
       return this.handleChannelUpdate(request);
+    } else if (url.pathname === "/delete" && request.method === "POST") {
+      return this.handleChannelDelete(request);
     }
+
 
     return new Response("Not found in hub", { status: 404 });
   }
@@ -81,6 +84,29 @@ export class DashboardHub extends DurableObject {
     }
   }
 
+  async handleChannelDelete(request: Request): Promise<Response> {
+    try {
+      const payload: any = await request.json();
+      const channel = payload.channel;
+      if (channel && this.allChannelData.has(channel)) {
+        this.allChannelData.delete(channel);
+        await this.ctx.storage.put(
+          "allChannelData",
+          Object.fromEntries(this.allChannelData)
+        );
+        this.broadcastDelete(channel);
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    } catch (err: any) {
+      return new Response(JSON.stringify({ error: "Invalid JSON payload" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+  }
+
   // Periodic cleanup for idle channels (Issue #5)
   async alarm() {
     const IDLE_TIMEOUT_SECONDS = 3600; // Ubah angka ini (dalam detik), contoh: 120 untuk 2 menit
@@ -93,6 +119,7 @@ export class DashboardHub extends DurableObject {
       if (now - updatedAt > IDLE_TIMEOUT_MS) {
         this.allChannelData.delete(channel);
         changed = true;
+        this.broadcastDelete(channel);
         console.log(`Auto-deleted idle channel: ${channel}`);
       }
     }
@@ -153,6 +180,17 @@ export class DashboardHub extends DurableObject {
       }
     }
   }
+
+  broadcastDelete(channel: string) {
+    const message = JSON.stringify({ type: 'delete', channel });
+    for (const session of this.sessions) {
+      try {
+        session.send(message);
+      } catch (err) {
+        this.sessions.delete(session);
+      }
+    }
+  }
 }
 
 export class TradingChannel extends DurableObject {
@@ -176,6 +214,17 @@ export class TradingChannel extends DurableObject {
 
     if (url.pathname === "/update" && request.method === "POST") {
       return this.handleUpdate(request);
+    } else if (url.pathname === "/delete" && request.method === "POST") {
+      this.lastData = {};
+      await this.ctx.storage.delete("lastData");
+      // Optionally disconnect active sessions for this channel
+      for (const session of this.sessions) {
+        session.close();
+      }
+      this.sessions.clear();
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json" }
+      });
     } else if (url.pathname === "/ws" && request.method === "GET") {
       return this.handleWebSocket(request);
     }
@@ -283,6 +332,37 @@ export default {
       const hubId = env.DASHBOARD_HUB.idFromName("main");
       const hubStub = env.DASHBOARD_HUB.get(hubId);
       return hubStub.fetch(request);
+
+    } else if (url.pathname === "/delete") {
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+
+      const reqClone = request.clone();
+      let payload: any;
+      try {
+        payload = await reqClone.json();
+      } catch (e) {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      if (!payload.channel) {
+        return new Response("Missing channel in JSON", { status: 400 });
+      }
+
+      // Route to DashboardHub to remove from global list
+      const hubId = env.DASHBOARD_HUB.idFromName("main");
+      const hubStub = env.DASHBOARD_HUB.get(hubId);
+      await hubStub.fetch(new Request("https://hub/delete", {
+        method: "POST",
+        body: JSON.stringify({ channel: payload.channel }),
+        headers: { "Content-Type": "application/json" }
+      }));
+
+      // Route to the specific Durable Object instance to clear its local data
+      const id = env.TRADING_CHANNEL.idFromName(payload.channel);
+      const stub = env.TRADING_CHANNEL.get(id);
+      return stub.fetch(request);
 
     } else if (url.pathname === "/update") {
       if (request.method !== "POST") {

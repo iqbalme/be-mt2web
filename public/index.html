@@ -144,6 +144,24 @@
 				font-weight: 500;
 			}
 
+			.delete-btn {
+				background: none;
+				border: none;
+				color: #ff5252;
+				font-size: 18px;
+				font-weight: bold;
+				cursor: pointer;
+				margin-left: 12px;
+				padding: 0 4px;
+				border-radius: 4px;
+				transition: background 0.2s;
+			}
+
+			.delete-btn:hover {
+				background: #ffebee;
+			}
+
+
 			.status-indicator {
 				width: 8px;
 				height: 8px;
@@ -448,10 +466,20 @@
 
 
 				   handleMessage(message) {
+					   // Check for delete broadcast
+					   if (message.type === 'delete' && message.channel) {
+						   this.data.delete(message.channel);
+						   this.visibleTerminals.delete(message.channel);
+						   this.updateDropdown();
+						   this.render();
+						   return;
+					   }
+
 					   // Jika message adalah objek dengan banyak channel
 					   if (typeof message === 'object' && !Array.isArray(message) && Object.keys(message).every(k => typeof message[k] === 'object')) {
 						   for (const [channel, data] of Object.entries(message)) {
 							   const terminalId = channel || 'Unknown';
+
 							   // Overwrite instead of merge to handle dynamic keys (Issue #5)
 							   this.data.set(terminalId, {
 								   ...data,
@@ -512,12 +540,39 @@
 						const status = document.createElement('div');
 						status.className = `status-indicator ${!isActive ? 'status-inactive' : ''}`;
 
+						const deleteBtn = document.createElement('button');
+						deleteBtn.innerHTML = '×';
+						deleteBtn.className = 'delete-btn';
+						deleteBtn.title = 'Hapus Channel';
+						deleteBtn.onclick = (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							this.deleteChannel(terminalId);
+						};
+
 						item.appendChild(checkbox);
 						item.appendChild(label);
 						item.appendChild(status);
+						item.appendChild(deleteBtn);
 						this.dropdownMenu.appendChild(item);
 					});
 				}
+
+				async deleteChannel(channel) {
+					if (!confirm(`Yakin ingin menghapus channel ${channel}?`)) return;
+					try {
+						await fetch('/delete', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ channel })
+						});
+						// Data dihapus melalui websocket broadcast dari server
+					} catch (e) {
+						console.error('Failed to delete channel', e);
+						alert('Gagal menghapus channel');
+					}
+				}
+
 
 				updateFilterText() {
 					const count = this.visibleTerminals.size;

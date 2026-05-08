@@ -71,8 +71,10 @@ test_dashboard.sh        # Test script (Bash)
 ### Filter Dropdown
 - Menampilkan semua terminal aktif
 - Checkbox untuk select/deselect
+- Tombol (×) untuk menghapus channel secara manual
 - Status indicator (hijau=aktif, abu-abu=tidak aktif)
 - Counter: "X dari Y terminal"
+
 
 ### Card Display
 - Terminal name (channel)
