@@ -45,18 +45,9 @@ export class DashboardHub extends DurableObject {
       }
 
       // Update channel data in hub
-      let channelData = this.allChannelData.get(channel) || {};
-
-      // Handle optional 'remove' array
-      if (Array.isArray(remove)) {
-        for (const key of remove) {
-          delete channelData[key];
-        }
-      }
-
-      // Merge incoming data
-      channelData = {
-        ...channelData,
+      // Note: We overwrite instead of merging to ensure the UI reflects the latest JSON structure
+      // (as per issue #5 requirement for dynamic keys)
+      let channelData = {
         ...data,
         channel,
         updated_at: new Date().toISOString()
@@ -69,6 +60,12 @@ export class DashboardHub extends DurableObject {
         "allChannelData",
         Object.fromEntries(this.allChannelData)
       );
+
+      // Schedule cleanup alarm (setiap 1 menit)
+      const currentAlarm = await this.ctx.storage.getAlarm();
+      if (currentAlarm === null) {
+        await this.ctx.storage.setAlarm(Date.now() + 60 * 1000);
+      }
 
       // Broadcast to all dashboard clients
       this.broadcastToClients();
@@ -84,7 +81,36 @@ export class DashboardHub extends DurableObject {
     }
   }
 
+  // Periodic cleanup for idle channels (Issue #5)
+  async alarm() {
+    const IDLE_TIMEOUT_SECONDS = 3600; // Ubah angka ini (dalam detik), contoh: 120 untuk 2 menit
+    const IDLE_TIMEOUT_MS = IDLE_TIMEOUT_SECONDS * 1000;
+    const now = Date.now();
+    let changed = false;
+
+    for (const [channel, data] of this.allChannelData.entries()) {
+      const updatedAt = new Date(data.updated_at).getTime();
+      if (now - updatedAt > IDLE_TIMEOUT_MS) {
+        this.allChannelData.delete(channel);
+        changed = true;
+        console.log(`Auto-deleted idle channel: ${channel}`);
+      }
+    }
+
+    if (changed) {
+      await this.ctx.storage.put(
+        "allChannelData",
+        Object.fromEntries(this.allChannelData)
+      );
+      this.broadcastToClients();
+    }
+
+    // Reschedule alarm setiap 1 menit agar lebih responsif terhadap timeout yang pendek
+    await this.ctx.storage.setAlarm(Date.now() + 60 * 1000);
+  }
+
   handleDashboardWebSocket(request: Request): Response {
+
     if (request.headers.get("Upgrade") !== "websocket") {
       return new Response("Expected Upgrade: websocket", { status: 426 });
     }
@@ -162,19 +188,12 @@ export class TradingChannel extends DurableObject {
       const payload: any = await request.json();
       const { channel, remove, ...data } = payload;
 
-      // Handle optional 'remove' array
-      if (Array.isArray(remove)) {
-        for (const key of remove) {
-          delete this.lastData[key];
-        }
-      }
-
-      // Merge incoming data with existing state
+      // Overwrite state with incoming data (Issue #5: Dynamic keys)
       this.lastData = {
-        ...this.lastData,
         ...data,
         updated_at: new Date().toISOString()
       };
+
 
       // Persist to storage
       await this.ctx.storage.put("lastData", this.lastData);
