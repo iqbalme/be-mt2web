@@ -488,7 +488,7 @@
 								   timestamp: new Date(data.updated_at || new Date()),
 								   createdAt: existing ? existing.createdAt : Date.now()
 							   });
-							   if (!this.visibleTerminals.has(terminalId)) {
+							   if (!existing) {
 								   this.visibleTerminals.add(terminalId);
 							   }
 						   }
@@ -504,7 +504,7 @@
 							   timestamp: new Date(data.updated_at || new Date()),
 							   createdAt: existing ? existing.createdAt : Date.now()
 						   });
-						   if (!this.visibleTerminals.has(terminalId)) {
+						   if (!existing) {
 							   this.visibleTerminals.add(terminalId);
 						   }
 					   }
