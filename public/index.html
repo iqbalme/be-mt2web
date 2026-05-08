@@ -479,12 +479,14 @@
 					   if (typeof message === 'object' && !Array.isArray(message) && Object.keys(message).every(k => typeof message[k] === 'object')) {
 						   for (const [channel, data] of Object.entries(message)) {
 							   const terminalId = channel || 'Unknown';
+							   const existing = this.data.get(terminalId);
 
 							   // Overwrite instead of merge to handle dynamic keys (Issue #5)
 							   this.data.set(terminalId, {
 								   ...data,
 								   id: terminalId,
-								   timestamp: new Date(data.updated_at || new Date())
+								   timestamp: new Date(data.updated_at || new Date()),
+								   createdAt: existing ? existing.createdAt : Date.now()
 							   });
 							   if (!this.visibleTerminals.has(terminalId)) {
 								   this.visibleTerminals.add(terminalId);
@@ -494,11 +496,13 @@
 						   // Fallback: single channel
 						   const { channel, ...data } = message;
 						   const terminalId = channel || 'Unknown';
+						   const existing = this.data.get(terminalId);
 						   // Overwrite instead of merge to handle dynamic keys (Issue #5)
 						   this.data.set(terminalId, {
 							   ...data,
 							   id: terminalId,
-							   timestamp: new Date(data.updated_at || new Date())
+							   timestamp: new Date(data.updated_at || new Date()),
+							   createdAt: existing ? existing.createdAt : Date.now()
 						   });
 						   if (!this.visibleTerminals.has(terminalId)) {
 							   this.visibleTerminals.add(terminalId);
@@ -613,7 +617,12 @@
 				render() {
 					const visibleData = Array.from(this.data.values())
 						.filter(item => this.visibleTerminals.has(item.id))
-						.sort((a, b) => b.timestamp - a.timestamp);
+						.sort((a, b) => {
+							if (b.createdAt !== a.createdAt) {
+								return b.createdAt - a.createdAt;
+							}
+							return a.id.localeCompare(b.id);
+						});
 
 					if (this.data.size === 0) {
 						this.cardsContainer.innerHTML = `
