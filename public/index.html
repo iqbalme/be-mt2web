@@ -635,35 +635,57 @@
 						return;
 					}
 
-					this.cardsContainer.innerHTML = visibleData.map(item => this.createCard(item)).join('');
-				}
+					const emptyState = this.cardsContainer.querySelector('.empty-state');
+					if (emptyState) emptyState.remove();
 
-				createCard(item) {
-					const dataRows = Object.entries(item)
-						.filter(([key]) => !['id', 'timestamp', 'channel', 'updated_at'].includes(key))
-						.map(([key, value]) => {
-							const colorClass = this.getValueColorClass(key, value);
-							return `
-								<div class="data-row">
-									<span class="data-key">${key}</span>
-									<span class="data-value ${colorClass}">${this.formatValue(value)}</span>
+					const sanitizeId = (id) => 'card-' + id.replace(/[^a-zA-Z0-9]/g, '-');
+					const currentIds = new Set(visibleData.map(item => sanitizeId(item.id)));
+
+					Array.from(this.cardsContainer.children).forEach(child => {
+						if (child.classList.contains('card') && !currentIds.has(child.id)) {
+							child.remove();
+						}
+					});
+
+					visibleData.forEach((item, index) => {
+						const id = sanitizeId(item.id);
+						let card = document.getElementById(id);
+						
+						const timeContent = this.formatTime(item.timestamp);
+						const dataRows = Object.entries(item)
+							.filter(([key]) => !['id', 'timestamp', 'channel', 'updated_at'].includes(key))
+							.map(([key, value]) => {
+								const colorClass = this.getValueColorClass(key, value);
+								return `
+									<div class="data-row">
+										<span class="data-key">${key}</span>
+										<span class="data-value ${colorClass}">${this.formatValue(value)}</span>
+									</div>
+								`;
+							})
+							.join('');
+						const bodyContent = dataRows || '<div style="color: #999; text-align: center; padding: 12px;">Tidak ada data</div>';
+
+						if (card) {
+							card.querySelector('.card-time').textContent = timeContent;
+							card.querySelector('.card-body').innerHTML = bodyContent;
+						} else {
+							card = document.createElement('div');
+							card.id = id;
+							card.className = 'card';
+							card.innerHTML = `
+								<div class="card-header">
+									<span class="card-title">${item.id}</span>
+									<span class="card-time">${timeContent}</span>
+								</div>
+								<div class="card-body">
+									${bodyContent}
 								</div>
 							`;
-						})
-						.join('');
-
-
-					return `
-						<div class="card">
-							<div class="card-header">
-								<span class="card-title">${item.id}</span>
-								<span class="card-time">${this.formatTime(item.timestamp)}</span>
-							</div>
-							<div class="card-body">
-								${dataRows || '<div style="color: #999; text-align: center; padding: 12px;">Tidak ada data</div>'}
-							</div>
-						</div>
-					`;
+							this.cardsContainer.appendChild(card);
+						}
+						card.style.order = index;
+					});
 				}
 
 				   formatValue(value) {
