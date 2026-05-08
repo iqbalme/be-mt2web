@@ -434,25 +434,37 @@
 					};
 				}
 
-				handleMessage(message) {
-					const { channel, ...data } = message;
-					const terminalId = channel || 'Unknown';
 
-					// Update atau tambah data terminal
-					this.data.set(terminalId, {
-						...data,
-						id: terminalId,
-						timestamp: new Date(data.updated_at || new Date())
-					});
-
-					// Auto-select terminal baru
-					if (!this.visibleTerminals.has(terminalId)) {
-						this.visibleTerminals.add(terminalId);
-					}
-
-					this.updateDropdown();
-					this.render();
-				}
+				   handleMessage(message) {
+					   // Jika message adalah objek dengan banyak channel
+					   if (typeof message === 'object' && !Array.isArray(message) && Object.keys(message).every(k => typeof message[k] === 'object')) {
+						   for (const [channel, data] of Object.entries(message)) {
+							   const terminalId = channel || 'Unknown';
+							   this.data.set(terminalId, {
+								   ...data,
+								   id: terminalId,
+								   timestamp: new Date(data.updated_at || new Date())
+							   });
+							   if (!this.visibleTerminals.has(terminalId)) {
+								   this.visibleTerminals.add(terminalId);
+							   }
+						   }
+					   } else {
+						   // Fallback: single channel
+						   const { channel, ...data } = message;
+						   const terminalId = channel || 'Unknown';
+						   this.data.set(terminalId, {
+							   ...data,
+							   id: terminalId,
+							   timestamp: new Date(data.updated_at || new Date())
+						   });
+						   if (!this.visibleTerminals.has(terminalId)) {
+							   this.visibleTerminals.add(terminalId);
+						   }
+					   }
+					   this.updateDropdown();
+					   this.render();
+				   }
 
 				updateDropdown() {
 					const terminals = Array.from(this.data.keys()).sort();
@@ -580,15 +592,18 @@
 					`;
 				}
 
-				formatValue(value) {
-					if (typeof value === 'object') {
-						return JSON.stringify(value);
-					}
-					if (typeof value === 'boolean') {
-						return value ? '✓' : '✗';
-					}
-					return String(value);
-				}
+				   formatValue(value) {
+					   if (Array.isArray(value)) {
+						   return `<ul style="margin:0 0 0 18px;padding:0;">${value.map(v => `<li>${this.formatValue(v)}</li>`).join('')}</ul>`;
+					   }
+					   if (typeof value === 'object' && value !== null) {
+						   return `<ul style="margin:0 0 0 18px;padding:0;">${Object.entries(value).map(([k, v]) => `<li><strong>${k}:</strong> ${this.formatValue(v)}</li>`).join('')}</ul>`;
+					   }
+					   if (typeof value === 'boolean') {
+						   return value ? '✓' : '✗';
+					   }
+					   return String(value);
+				   }
 			}
 
 			// Initialize dashboard
